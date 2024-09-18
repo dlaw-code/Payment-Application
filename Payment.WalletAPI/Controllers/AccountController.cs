@@ -81,4 +81,50 @@ public class AccountsController : ControllerBase
             Message = "Balance retrieved successfully"
         });
     }
+
+    // POST: api/accounts/transfer
+    [HttpPost("transfer")]
+    public async Task<IActionResult> TransferFunds([FromBody] TransferRequest request)
+    {
+        var result = await _accountService.TransferFundsAsync(request);
+        if (!result)
+        {
+            return BadRequest(new ResponseDto<object>
+            {
+                IsSuccess = false,
+                Message = "Transfer failed",
+                Errors = new List<string> { "Invalid accounts or insufficient funds." }
+            });
+        }
+
+        return Ok(new ResponseDto<object>
+        {
+            Result = null,
+            Message = "Transfer successful"
+        });
+    }
+
+
+    // POST: api/accounts/withdraw
+    [HttpPost("withdraw")]
+    public async Task<IActionResult> WithdrawFunds([FromBody] WithdrawRequest request)
+    {
+        var result = await _accountService.WithdrawFundsAsync(request);
+        if (!result)
+        {
+            return BadRequest(new ResponseDto<object>
+            {
+                IsSuccess = false,
+                Message = "Withdrawal failed",
+                Errors = new List<string> { "Invalid account or insufficient funds." }
+            });
+        }
+
+        return Ok(new ResponseDto<object>
+        {
+            Result = null,
+            Message = "Withdrawal successful"
+        });
+    }
+
 }

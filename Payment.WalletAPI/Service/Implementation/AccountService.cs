@@ -1,4 +1,5 @@
 ﻿using Payment.WalletAPI.Entity;
+using Payment.WalletAPI.Model.Dto.Request;
 using Payment.WalletAPI.Service.Interface;
 using System;
 
@@ -46,4 +47,44 @@ public class AccountService : IAccountService
         var account = await _context.Accounts.FindAsync(accountId);
         return account?.Balance; // Return balance or null if account not found
     }
+
+    public async Task<bool> TransferFundsAsync(TransferRequest request)
+    {
+        if (request.Amount <= 0) return false; // Validate transfer amount
+
+        var fromAccount = await _context.Accounts.FindAsync(request.FromAccountId);
+        var toAccount = await _context.Accounts.FindAsync(request.ToAccountId);
+
+        if (fromAccount == null || toAccount == null) return false; // Check if both accounts exist
+        if (fromAccount.Balance < request.Amount) return false; // Check for sufficient funds
+
+        // Perform the transfer
+        fromAccount.Balance -= request.Amount;
+        toAccount.Balance += request.Amount;
+
+        _context.Accounts.Update(fromAccount);
+        _context.Accounts.Update(toAccount);
+        await _context.SaveChangesAsync();
+
+        return true;
+    }
+
+
+    public async Task<bool> WithdrawFundsAsync(WithdrawRequest request)
+    {
+        if (request.Amount <= 0) return false; // Validate withdrawal amount
+
+        var account = await _context.Accounts.FindAsync(request.AccountId);
+        if (account == null) return false; // Check if account exists
+        if (account.Balance < request.Amount) return false; // Check for sufficient funds
+
+        // Perform the withdrawal
+        account.Balance -= request.Amount;
+
+        _context.Accounts.Update(account);
+        await _context.SaveChangesAsync();
+
+        return true;
+    }
+
 }
