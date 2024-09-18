@@ -1,15 +1,15 @@
 ﻿using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using Microsoft.EntityFrameworkCore;
-using System.Collections.Generic;
+using System;
 
 namespace Payment.WalletAPI.Entity
 {
-    public class Account
+    public class CreateAccount
     {
-
-        public int Id { get; set; }
         public string UserId { get; set; }
-        public decimal Balance { get; set; }
-
+        public decimal InitialBalance { get; set; }
     }
+
+    // Configuration for Transaction entity
+    
 }
