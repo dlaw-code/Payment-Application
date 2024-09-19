@@ -74,20 +74,32 @@ public class AccountService : IAccountService
 
     public async Task<bool> WithdrawFundsAsync(WithdrawRequest request)
     {
-        if (request.Amount <= 0) return false; // Validate withdrawal amount
-
         var account = await _context.Accounts.FindAsync(request.AccountId);
-        if (account == null) return false; // Check if account exists
-        if (account.Balance < request.Amount) return false; // Check for sufficient funds
+        if (account == null || request.Amount <= 0)
+        {
+            return false; // Invalid account or amount
+        }
 
-        // Perform the withdrawal
+        // Check daily spending limit
+        if (account.DailySpent + request.Amount > account.DailyLimit)
+        {
+            return false; // Exceeds daily limit
+        }
+
+        // Check if sufficient balance
+        if (account.Balance < request.Amount)
+        {
+            return false; // Insufficient funds
+        }
+
+        // Perform withdrawal
         account.Balance -= request.Amount;
+        account.DailySpent += request.Amount;
 
-        _context.Accounts.Update(account);
         await _context.SaveChangesAsync();
-
         return true;
     }
+
 
 
     public async Task<string> GenerateShortCodeAsync(ShortCodeRequest request)
@@ -113,6 +125,27 @@ public class AccountService : IAccountService
         await _context.SaveChangesAsync();
 
         return shortCode;
+    }
+
+    public void ResetDailySpending()
+    {
+        var accounts = _context.Accounts.ToList();
+        foreach (var account in accounts)
+        {
+            account.DailySpent = 0; // Reset daily spending
+        }
+        _context.SaveChanges(); // Save changes to the database
+    }
+
+    public async Task ResetDailySpendingAsync()
+    {
+        // Logic to reset daily spending limits for all accounts
+        var accounts = await _context.Accounts.ToListAsync(); // Assuming you're using EF Core
+        foreach (var account in accounts)
+        {
+            account.DailySpent = 0; // Reset to 0 or however you want to handle it
+        }
+        await _context.SaveChangesAsync();
     }
 
 

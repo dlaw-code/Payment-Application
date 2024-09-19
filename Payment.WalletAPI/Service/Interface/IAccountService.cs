@@ -13,7 +13,7 @@ namespace Payment.WalletAPI.Service.Interface
         Task<bool> WithdrawFundsAsync(WithdrawRequest request);
         Task<string> GenerateShortCodeAsync(ShortCodeRequest request);
         Task<bool> ConfirmTransferWithShortCodeAsync(ShortCodeConfirmation confirmation);
-
+        Task ResetDailySpendingAsync();
 
     }
 
