@@ -1,5 +1,6 @@
 ﻿using Payment.WalletAPI.Model.Dto;
 using Payment.WalletAPI.Model.Dto.Request;
+using Payment.WalletAPI.Model.Dto.Response;
 
 namespace Payment.WalletAPI.Service.Interface
 {
@@ -10,6 +11,8 @@ namespace Payment.WalletAPI.Service.Interface
         Task<decimal?> GetAccountBalanceAsync(int accountId);
         Task<bool> TransferFundsAsync(TransferRequest request);
         Task<bool> WithdrawFundsAsync(WithdrawRequest request);
+        Task<string> GenerateShortCodeAsync(ShortCodeRequest request);
+        Task<bool> ConfirmTransferWithShortCodeAsync(ShortCodeConfirmation confirmation);
 
 
     }

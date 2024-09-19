@@ -1,5 +1,7 @@
-﻿using Payment.WalletAPI.Entity;
+﻿using Microsoft.EntityFrameworkCore;
+using Payment.WalletAPI.Entity;
 using Payment.WalletAPI.Model.Dto.Request;
+using Payment.WalletAPI.Model.Dto.Response;
 using Payment.WalletAPI.Service.Interface;
 using System;
 
@@ -86,5 +88,108 @@ public class AccountService : IAccountService
 
         return true;
     }
+
+
+    public async Task<string> GenerateShortCodeAsync(ShortCodeRequest request)
+    {
+        string shortCode;
+        bool codeExists;
+
+        do
+        {
+            shortCode = new Random().Next(1000, 9999).ToString();
+            codeExists = await _context.ShortCodes.AnyAsync(sc => sc.Code == shortCode);
+        } while (codeExists);
+
+        var shortCodeEntry = new ShortCode
+        {
+            Code = shortCode,
+            FromAccountId = request.FromAccountId,
+            Amount = request.Amount,
+            CreatedAt = DateTime.UtcNow // Capture the current time
+        };
+
+        _context.ShortCodes.Add(shortCodeEntry);
+        await _context.SaveChangesAsync();
+
+        return shortCode;
+    }
+
+
+
+    public async Task<bool> ConfirmTransferWithShortCodeAsync(ShortCodeConfirmation confirmation)
+    {
+        var shortCodeEntry = await _context.ShortCodes
+            .Include(sc => sc.FromAccount)
+            .SingleOrDefaultAsync(sc => sc.Code == confirmation.ShortCode);
+
+        if (shortCodeEntry == null)
+        {
+            return false; // Short code not found
+        }
+
+        if ((DateTime.UtcNow - shortCodeEntry.CreatedAt).TotalMinutes > 5)
+        {
+            _context.ShortCodes.Remove(shortCodeEntry);
+            await _context.SaveChangesAsync();
+            return false; // Code has expired
+        }
+
+        var recipientAccount = await _context.Accounts.FindAsync(confirmation.ToAccountId);
+        if (recipientAccount == null)
+        {
+            return false; // Recipient account not found
+        }
+
+        if (shortCodeEntry.Amount > shortCodeEntry.FromAccount.Balance)
+        {
+            return false; // Insufficient funds
+        }
+
+        // Withdraw from sender's account
+        shortCodeEntry.FromAccount.Balance -= shortCodeEntry.Amount;
+
+        // Deposit to recipient's account
+        recipientAccount.Balance += shortCodeEntry.Amount;
+
+        // Record transactions
+        var withdrawalTransaction = new Transaction
+        {
+            AccountId = shortCodeEntry.FromAccountId,
+            Amount = shortCodeEntry.Amount,
+            Type = "Withdrawal",
+            CreatedAt = DateTime.UtcNow
+        };
+        var depositTransaction = new Transaction
+        {
+            AccountId = confirmation.ToAccountId,
+            Amount = shortCodeEntry.Amount,
+            Type = "Deposit",
+            CreatedAt = DateTime.UtcNow
+        };
+
+        _context.Transactions.Add(withdrawalTransaction);
+        _context.Transactions.Add(depositTransaction);
+
+        // Save changes to the accounts and transactions
+        await _context.SaveChangesAsync();
+
+        // After successful transfer, remove the short code
+        _context.ShortCodes.Remove(shortCodeEntry);
+        await _context.SaveChangesAsync();
+
+        return true; // Transfer successful
+    }
+
+
+    public async Task<List<Transaction>> GetTransactionHistoryAsync(int accountId)
+    {
+        return await _context.Transactions
+            .Where(t => t.AccountId == accountId)
+            .OrderByDescending(t => t.CreatedAt) // Order by most recent
+            .ToListAsync();
+    }
+
+
 
 }

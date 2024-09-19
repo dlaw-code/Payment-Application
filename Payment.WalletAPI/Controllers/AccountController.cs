@@ -10,10 +10,12 @@ using Payment.WalletAPI.Service.Interface;
 public class AccountsController : ControllerBase
 {
     private readonly IAccountService _accountService;
+    private readonly ITransactionService _transactionService;
 
-    public AccountsController(IAccountService accountService)
+    public AccountsController(IAccountService accountService, ITransactionService transactionService)
     {
         _accountService = accountService;
+        _transactionService = transactionService;
     }
 
     // POST: api/accounts
@@ -126,5 +128,52 @@ public class AccountsController : ControllerBase
             Message = "Withdrawal successful"
         });
     }
+
+    // POST: api/accounts/generate-short-code
+    [HttpPost("generate-short-code")]
+    public async Task<IActionResult> GenerateShortCode([FromBody] ShortCodeRequest request)
+    {
+        var shortCode = await _accountService.GenerateShortCodeAsync(request);
+        return Ok(new ResponseDto<string>
+        {
+            Result = shortCode,
+            Message = "Short code generated successfully."
+        });
+    }
+
+    // POST: api/accounts/confirm-short-code
+    [HttpPost("confirm-short-code")]
+    public async Task<IActionResult> ConfirmShortCode([FromBody] ShortCodeConfirmation confirmation)
+    {
+        var result = await _accountService.ConfirmTransferWithShortCodeAsync(confirmation);
+        if (!result)
+        {
+            return BadRequest(new ResponseDto<object>
+            {
+                IsSuccess = false,
+                Message = "Transfer failed",
+                Errors = new List<string> { "Invalid short code or insufficient funds." }
+            });
+        }
+
+        return Ok(new ResponseDto<object>
+        {
+            Result = null,
+            Message = "Transfer confirmed successfully."
+        });
+    }
+    [HttpGet("transaction-history/{accountId}")]
+    public async Task<ActionResult<ResponseDto<List<TransactionDto>>>> GetTransactionHistory(int accountId)
+    {
+        var transactions = await _transactionService.GetTransactionHistoryAsync(accountId);
+
+        return Ok(new ResponseDto<List<TransactionDto>>
+        {
+            Result = transactions,
+            IsSuccess = true,
+            Message = "Transaction history retrieved successfully."
+        });
+    }
+
 
 }
