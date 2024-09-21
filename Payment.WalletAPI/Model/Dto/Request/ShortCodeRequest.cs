@@ -2,7 +2,7 @@
 {
     public class ShortCodeRequest
     {
-        public int FromAccountId { get; set; }
+        public string FromAccountNumber { get; set; } // Now using AccountNumber instead of AccountId
         public decimal Amount { get; set; }
     }
 }

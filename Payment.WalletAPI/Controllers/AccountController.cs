@@ -1,4 +1,6 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Payment.WalletAPI.Model.Dto;
 using Payment.WalletAPI.Model.Dto.Request;
 using Payment.WalletAPI.Model.Dto.Response;
@@ -6,7 +8,8 @@ using Payment.WalletAPI.Service.Interface;
 
 
 [ApiController]
-[Route("api/[controller]")]
+[Route("api/accounts")]
+[Authorize]
 public class AccountsController : ControllerBase
 {
     private readonly IAccountService _accountService;
@@ -19,7 +22,7 @@ public class AccountsController : ControllerBase
     }
 
     // POST: api/accounts
-    [HttpPost]
+    [HttpPost("create")]
     public async Task<IActionResult> CreateAccount([FromBody] CreateAccountRequest request)
     {
         var accountId = await _accountService.CreateAccountAsync(request.UserId, request.InitialBalance);
@@ -33,25 +36,28 @@ public class AccountsController : ControllerBase
             });
         }
 
-        return CreatedAtAction(nameof(GetBalance), new { id = accountId }, new ResponseDto<object>
+        return CreatedAtAction(nameof(GetBalance), new { userId = request.UserId }, new ResponseDto<object>
         {
             Result = null,
             Message = "Account created successfully"
         });
+
     }
 
     // POST: api/accounts/deposit
     [HttpPost("deposit")]
     public async Task<IActionResult> DepositFunds([FromBody] DepositRequest request)
     {
-        var result = await _accountService.DepositFundsAsync(request.AccountId, request.Amount);
+        // Call the DepositFundsAsync method with account number and amount
+        var result = await _accountService.DepositFundsAsync(request.AccountNumber, request.Amount);
+
         if (!result)
         {
             return BadRequest(new ResponseDto<object>
             {
                 IsSuccess = false,
                 Message = "Deposit failed",
-                Errors = new List<string> { "Invalid account or amount." }
+                Errors = new List<string> { "Invalid account number or amount." }
             });
         }
 
@@ -62,11 +68,13 @@ public class AccountsController : ControllerBase
         });
     }
 
+
+
     // GET: api/accounts/{id}/balance
-    [HttpGet("{id}/balance")]
-    public async Task<IActionResult> GetBalance(int id)
+    [HttpGet("{userId}/balance")]
+    public async Task<IActionResult> GetBalance(string userId)
     {
-        var balance = await _accountService.GetAccountBalanceAsync(id);
+        var balance = await _accountService.GetAccountBalanceByUserIdAsync(userId);
         if (balance == null)
         {
             return NotFound(new ResponseDto<object>
@@ -83,6 +91,10 @@ public class AccountsController : ControllerBase
             Message = "Balance retrieved successfully"
         });
     }
+
+
+
+
 
     // POST: api/accounts/transfer
     [HttpPost("transfer")]
@@ -105,6 +117,7 @@ public class AccountsController : ControllerBase
             Message = "Transfer successful"
         });
     }
+
 
 
     // POST: api/accounts/withdraw
@@ -162,8 +175,9 @@ public class AccountsController : ControllerBase
             Message = "Transfer confirmed successfully."
         });
     }
+
     [HttpGet("transaction-history/{accountId}")]
-    public async Task<ActionResult<ResponseDto<List<TransactionDto>>>> GetTransactionHistory(int accountId)
+    public async Task<ActionResult<ResponseDto<List<TransactionDto>>>> GetTransactionHistory(Guid accountId)
     {
         var transactions = await _transactionService.GetTransactionHistoryAsync(accountId);
 
@@ -174,6 +188,29 @@ public class AccountsController : ControllerBase
             Message = "Transaction history retrieved successfully."
         });
     }
+
+    [HttpDelete("user/{userId}")]
+    public async Task<IActionResult> DeleteAccountsByUserId(string userId)
+    {
+        var result = await _accountService.DeleteAccountsByUserIdAsync(userId);
+        if (!result)
+        {
+            return NotFound(new ResponseDto<object>
+            {
+                IsSuccess = false,
+                Message = "No accounts found for the specified user",
+                Errors = new List<string> { "No accounts to delete." }
+            });
+        }
+
+        return Ok(new ResponseDto<object>
+        {
+            Result = null,
+            Message = "Accounts deleted successfully"
+        });
+    }
+
+
 
 
 }

@@ -2,8 +2,8 @@
 {
     public class TransferRequest
     {
-        public int FromAccountId { get; set; }
-        public int ToAccountId { get; set; }
+        public string FromAccountNumber { get; set; }
+        public string ToAccountNumber { get; set; }
         public decimal Amount { get; set; }
     }
 }

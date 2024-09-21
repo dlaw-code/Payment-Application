@@ -9,30 +9,35 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<Account> Accounts { get; set; }
     public DbSet<ShortCode> ShortCodes { get; set; }
     public DbSet<Transaction> Transactions { get; set; }
+    public DbSet<RecurringPayment> RecurringPayments { get; set; }
+
     public DbSet<ApplicationUser> ApplicationUsers { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        base.OnModelCreating(modelBuilder); // Call this to ensure Identity-related entities are configured
+        base.OnModelCreating(modelBuilder);
 
         modelBuilder.Entity<Account>()
-            .Property(a => a.Balance)
-            .HasColumnType("decimal(18,2)");
+            .HasIndex(a => a.AccountNumber)
+            .IsUnique();
 
-        modelBuilder.Entity<ShortCode>()
-            .HasOne(sc => sc.FromAccount)
+        // Configure RecurringPayment -> FromAccount relationship with NO ACTION on delete
+        modelBuilder.Entity<RecurringPayment>()
+            .HasOne(rp => rp.FromAccount)
             .WithMany()
-            .HasForeignKey(sc => sc.FromAccountId)
-            .OnDelete(DeleteBehavior.Cascade);
+            .HasPrincipalKey(a => a.AccountNumber)
+            .HasForeignKey(rp => rp.FromAccountNumber)
+            .OnDelete(DeleteBehavior.Restrict);  // Changed to Restrict
 
-        modelBuilder.Entity<Transaction>()
-            .Property(t => t.Amount)
-            .HasColumnType("decimal(18,2)");
-
-        modelBuilder.Entity<Transaction>()
-            .HasOne(t => t.Account)
+        // Configure RecurringPayment -> ToAccount relationship with NO ACTION on delete
+        modelBuilder.Entity<RecurringPayment>()
+            .HasOne(rp => rp.ToAccount)
             .WithMany()
-            .HasForeignKey(t => t.AccountId)
-            .OnDelete(DeleteBehavior.Cascade);
+            .HasPrincipalKey(a => a.AccountNumber)
+            .HasForeignKey(rp => rp.ToAccountNumber)
+            .OnDelete(DeleteBehavior.Restrict);  // Changed to Restrict
     }
+
+
+
 }

@@ -11,8 +11,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Payment.WalletAPI.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20240919153039_ApplicationUserMigrations")]
-    partial class ApplicationUserMigrations
+    [Migration("20240921223754_FirstMigrations")]
+    partial class FirstMigrations
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -159,11 +159,13 @@ namespace Payment.WalletAPI.Migrations
 
             modelBuilder.Entity("Payment.WalletAPI.Entity.Account", b =>
                 {
-                    b.Property<int>("Id")
+                    b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
+                        .HasColumnType("uniqueidentifier");
 
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+                    b.Property<string>("AccountNumber")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
 
                     b.Property<decimal>("Balance")
                         .HasColumnType("decimal(18,2)");
@@ -179,6 +181,9 @@ namespace Payment.WalletAPI.Migrations
                         .HasColumnType("nvarchar(max)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("AccountNumber")
+                        .IsUnique();
 
                     b.ToTable("Accounts");
                 });
@@ -252,6 +257,49 @@ namespace Payment.WalletAPI.Migrations
                     b.ToTable("AspNetUsers", (string)null);
                 });
 
+            modelBuilder.Entity("Payment.WalletAPI.Entity.RecurringPayment", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<decimal>("Amount")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("EndDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("Frequency")
+                        .HasColumnType("int");
+
+                    b.Property<string>("FromAccountNumber")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<DateTime>("NextPaymentDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("StartDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ToAccountNumber")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("FromAccountNumber");
+
+                    b.HasIndex("ToAccountNumber");
+
+                    b.ToTable("RecurringPayments");
+                });
+
             modelBuilder.Entity("Payment.WalletAPI.Entity.ShortCode", b =>
                 {
                     b.Property<int>("Id")
@@ -270,8 +318,12 @@ namespace Payment.WalletAPI.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
-                    b.Property<int>("FromAccountId")
-                        .HasColumnType("int");
+                    b.Property<Guid>("FromAccountId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("FromAccountNumber")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
 
                     b.HasKey("Id");
 
@@ -288,8 +340,8 @@ namespace Payment.WalletAPI.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<int>("AccountId")
-                        .HasColumnType("int");
+                    b.Property<Guid>("AccountId")
+                        .HasColumnType("uniqueidentifier");
 
                     b.Property<decimal>("Amount")
                         .HasColumnType("decimal(18,2)");
@@ -357,6 +409,27 @@ namespace Payment.WalletAPI.Migrations
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("Payment.WalletAPI.Entity.RecurringPayment", b =>
+                {
+                    b.HasOne("Payment.WalletAPI.Entity.Account", "FromAccount")
+                        .WithMany()
+                        .HasForeignKey("FromAccountNumber")
+                        .HasPrincipalKey("AccountNumber")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Payment.WalletAPI.Entity.Account", "ToAccount")
+                        .WithMany()
+                        .HasForeignKey("ToAccountNumber")
+                        .HasPrincipalKey("AccountNumber")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("FromAccount");
+
+                    b.Navigation("ToAccount");
                 });
 
             modelBuilder.Entity("Payment.WalletAPI.Entity.ShortCode", b =>

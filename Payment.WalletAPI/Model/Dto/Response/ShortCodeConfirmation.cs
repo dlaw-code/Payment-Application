@@ -3,7 +3,7 @@
     public class ShortCodeConfirmation
     {
         public string ShortCode { get; set; }
-        public int ToAccountId { get; set; }
-        public decimal Amount { get; set; }
+        public string ToAccountNumber { get; set; }
     }
+
 }

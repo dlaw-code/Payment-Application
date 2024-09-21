@@ -7,10 +7,10 @@ namespace Payment.WalletAPI.Entity
 {
     public class Deposit
     {
-        public int AccountId { get; set; }
+        public Guid AccountId { get; set; } // Changed to Guid
         public decimal Amount { get; set; }
     }
 
     // Configuration for ApplicationUser
-    
+
 }

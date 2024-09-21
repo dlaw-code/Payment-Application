@@ -2,7 +2,8 @@
 {
     public class WithdrawRequest
     {
-        public int AccountId { get; set; }
+        public string AccountNumber { get; set; } // Change this from AccountId to AccountNumber
         public decimal Amount { get; set; }
     }
+
 }

@@ -4,11 +4,12 @@
     {
         public int Id { get; set; }
         public string Code { get; set; }
-        public int FromAccountId { get; set; }
+        public string FromAccountNumber { get; set; } // Add AccountNumber
         public decimal Amount { get; set; }
         public DateTime CreatedAt { get; set; }
 
-        // Navigation property
+        // Navigation property (optional)
         public virtual Account FromAccount { get; set; }
     }
+
 }

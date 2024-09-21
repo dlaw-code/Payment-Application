@@ -14,48 +14,109 @@ public class AccountService : IAccountService
         _context = context;
     }
 
-    public async Task<int?> CreateAccountAsync(string userId, decimal initialBalance)
+    public async Task<Guid?> CreateAccountAsync(string userId, decimal initialBalance)
     {
-        if (initialBalance < 0) return null; // Ensure initial balance is non-negative
+        // Ensure initial balance is non-negative
+        if (initialBalance < 0) return null;
+
+        // Check if an account already exists for the given user ID
+        var existingAccount = await _context.Accounts
+            .FirstOrDefaultAsync(a => a.UserId == userId);
+
+        if (existingAccount != null)
+        {
+            // Optionally, return the existing account ID or handle as needed
+            return existingAccount.Id;
+        }
+
+        // Generate a unique account number
+        var accountNumber = GenerateUniqueAccountNumber();
 
         var account = new Account
         {
             UserId = userId,
-            Balance = initialBalance
+            Balance = initialBalance,
+            AccountNumber = accountNumber // Assign the generated account number
         };
 
         _context.Accounts.Add(account);
         await _context.SaveChangesAsync();
 
-        return account.Id; // Return the newly created account ID
+        return account.Id; // Return the newly created account GUID
     }
 
-    public async Task<bool> DepositFundsAsync(int accountId, decimal amount)
+    // Function to generate a unique account number
+    private string GenerateUniqueAccountNumber()
     {
-        if (amount <= 0) return false; // Validate deposit amount
+        Random random = new Random();
+        string accountNumber;
 
-        var account = await _context.Accounts.FindAsync(accountId);
-        if (account == null) return false; // Check if account exists
+        do
+        {
+            // Generate two parts: a 5-digit and a 5-digit number to form a 10-digit account number
+            string part1 = random.Next(10000, 99999).ToString(); // 5 digits
+            string part2 = random.Next(10000, 99999).ToString(); // 5 digits
 
-        account.Balance += amount; // Update balance
-        _context.Accounts.Update(account);
+            accountNumber = part1 + part2; // Combine to form a 10-digit number
+
+        } while (_context.Accounts.Any(a => a.AccountNumber == accountNumber)); // Ensure the account number is unique
+
+        return accountNumber;
+    }
+
+
+
+    public async Task<bool> DepositFundsAsync(string accountNumber, decimal amount)
+    {
+        // Validate the account number format
+        if (!IsValidAccountNumber(accountNumber))
+        {
+            return false; // Invalid account number format
+        }
+
+        // Fetch the account using the account number
+        var account = await _context.Accounts
+            .FirstOrDefaultAsync(a => a.AccountNumber == accountNumber);
+
+        if (account == null || amount <= 0) return false; // Invalid account or amount
+
+        // Deposit the funds
+        account.Balance += amount;
+
         await _context.SaveChangesAsync();
-
         return true;
     }
 
-    public async Task<decimal?> GetAccountBalanceAsync(int accountId)
+    private bool IsValidAccountNumber(string accountNumber)
+    {
+        // Implement your validation logic here
+        return accountNumber.Length == 10 && long.TryParse(accountNumber, out _); // Example: 10 digits long
+    }
+
+    public async Task<decimal?> GetAccountBalanceAsync(Guid accountId)
     {
         var account = await _context.Accounts.FindAsync(accountId);
         return account?.Balance; // Return balance or null if account not found
     }
 
+    public async Task<decimal?> GetAccountBalanceByUserIdAsync(string userId)
+    {
+        var account = await _context.Accounts
+            .FirstOrDefaultAsync(a => a.UserId == userId);
+
+        return account?.Balance; // Return balance or null if account not found
+    }
+
+
     public async Task<bool> TransferFundsAsync(TransferRequest request)
     {
         if (request.Amount <= 0) return false; // Validate transfer amount
 
-        var fromAccount = await _context.Accounts.FindAsync(request.FromAccountId);
-        var toAccount = await _context.Accounts.FindAsync(request.ToAccountId);
+        // Fetch the accounts using the account numbers
+        var fromAccount = await _context.Accounts
+            .FirstOrDefaultAsync(a => a.AccountNumber == request.FromAccountNumber);
+        var toAccount = await _context.Accounts
+            .FirstOrDefaultAsync(a => a.AccountNumber == request.ToAccountNumber);
 
         if (fromAccount == null || toAccount == null) return false; // Check if both accounts exist
         if (fromAccount.Balance < request.Amount) return false; // Check for sufficient funds
@@ -74,7 +135,9 @@ public class AccountService : IAccountService
 
     public async Task<bool> WithdrawFundsAsync(WithdrawRequest request)
     {
-        var account = await _context.Accounts.FindAsync(request.AccountId);
+        var account = await _context.Accounts
+            .FirstOrDefaultAsync(a => a.AccountNumber == request.AccountNumber);
+
         if (account == null || request.Amount <= 0)
         {
             return false; // Invalid account or amount
@@ -102,8 +165,16 @@ public class AccountService : IAccountService
 
 
 
+
     public async Task<string> GenerateShortCodeAsync(ShortCodeRequest request)
     {
+        // Fetch the account using the account number
+        var fromAccount = await _context.Accounts.FirstOrDefaultAsync(a => a.AccountNumber == request.FromAccountNumber);
+        if (fromAccount == null)
+        {
+            return null; // Invalid account number
+        }
+
         string shortCode;
         bool codeExists;
 
@@ -116,9 +187,9 @@ public class AccountService : IAccountService
         var shortCodeEntry = new ShortCode
         {
             Code = shortCode,
-            FromAccountId = request.FromAccountId,
+            FromAccountNumber = fromAccount.AccountNumber, // Save the account number
             Amount = request.Amount,
-            CreatedAt = DateTime.UtcNow // Capture the current time
+            CreatedAt = DateTime.UtcNow
         };
 
         _context.ShortCodes.Add(shortCodeEntry);
@@ -126,6 +197,9 @@ public class AccountService : IAccountService
 
         return shortCode;
     }
+
+
+
 
     public void ResetDailySpending()
     {
@@ -161,6 +235,7 @@ public class AccountService : IAccountService
             return false; // Short code not found
         }
 
+        // Check if the short code has expired
         if ((DateTime.UtcNow - shortCodeEntry.CreatedAt).TotalMinutes > 5)
         {
             _context.ShortCodes.Remove(shortCodeEntry);
@@ -168,34 +243,36 @@ public class AccountService : IAccountService
             return false; // Code has expired
         }
 
-        var recipientAccount = await _context.Accounts.FindAsync(confirmation.ToAccountId);
+        // Fetch the recipient account using the account number
+        var recipientAccount = await _context.Accounts
+            .FirstOrDefaultAsync(a => a.AccountNumber == confirmation.ToAccountNumber);
+
         if (recipientAccount == null)
         {
             return false; // Recipient account not found
         }
 
+        // Check if the sender has sufficient balance
         if (shortCodeEntry.Amount > shortCodeEntry.FromAccount.Balance)
         {
             return false; // Insufficient funds
         }
 
-        // Withdraw from sender's account
+        // Perform the transfer
         shortCodeEntry.FromAccount.Balance -= shortCodeEntry.Amount;
-
-        // Deposit to recipient's account
         recipientAccount.Balance += shortCodeEntry.Amount;
 
         // Record transactions
         var withdrawalTransaction = new Transaction
         {
-            AccountId = shortCodeEntry.FromAccountId,
+            AccountId = shortCodeEntry.FromAccount.Id, // Use the navigation property for the sender
             Amount = shortCodeEntry.Amount,
             Type = "Withdrawal",
             CreatedAt = DateTime.UtcNow
         };
         var depositTransaction = new Transaction
         {
-            AccountId = confirmation.ToAccountId,
+            AccountId = recipientAccount.Id, // Use the recipient account ID
             Amount = shortCodeEntry.Amount,
             Type = "Deposit",
             CreatedAt = DateTime.UtcNow
@@ -207,7 +284,7 @@ public class AccountService : IAccountService
         // Save changes to the accounts and transactions
         await _context.SaveChangesAsync();
 
-        // After successful transfer, remove the short code
+        // Remove the short code after successful transfer
         _context.ShortCodes.Remove(shortCodeEntry);
         await _context.SaveChangesAsync();
 
@@ -215,13 +292,34 @@ public class AccountService : IAccountService
     }
 
 
-    public async Task<List<Transaction>> GetTransactionHistoryAsync(int accountId)
+
+
+
+    public async Task<List<Transaction>> GetTransactionHistoryAsync(Guid accountId)
     {
         return await _context.Transactions
-            .Where(t => t.AccountId == accountId)
+            .Where(t => t.AccountId == accountId) // Now comparing Guid with Guid
             .OrderByDescending(t => t.CreatedAt) // Order by most recent
             .ToListAsync();
     }
+
+    public async Task<bool> DeleteAccountsByUserIdAsync(string userId)
+    {
+        var accounts = await _context.Accounts
+            .Where(a => a.UserId == userId)
+            .ToListAsync();
+
+        if (!accounts.Any())
+        {
+            return false; // No accounts found for the user
+        }
+
+        _context.Accounts.RemoveRange(accounts);
+        await _context.SaveChangesAsync();
+
+        return true; // Accounts deleted successfully
+    }
+
 
 
 

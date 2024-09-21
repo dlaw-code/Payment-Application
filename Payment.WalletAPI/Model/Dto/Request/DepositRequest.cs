@@ -2,7 +2,8 @@
 {
     public class DepositRequest
     {
-        public int AccountId { get; set; }
+        public string AccountNumber { get; set; } // Change to string for account number
         public decimal Amount { get; set; }
     }
+
 }

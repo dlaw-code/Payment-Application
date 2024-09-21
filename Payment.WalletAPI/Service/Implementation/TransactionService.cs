@@ -14,10 +14,10 @@ namespace Payment.WalletAPI.Service.Implementation
             _context = context;
         }
 
-        public async Task<List<TransactionDto>> GetTransactionHistoryAsync(int accountId)
+        public async Task<List<TransactionDto>> GetTransactionHistoryAsync(Guid accountId)
         {
             return await _context.Transactions
-                .Where(t => t.AccountId == accountId)
+                .Where(t => t.AccountId == accountId) // Now comparing Guid with Guid
                 .Select(t => new TransactionDto
                 {
                     Id = t.Id,
@@ -29,6 +29,7 @@ namespace Payment.WalletAPI.Service.Implementation
                 .OrderByDescending(t => t.CreatedAt)
                 .ToListAsync();
         }
+
 
     }
 }

@@ -7,7 +7,7 @@ using Payment.WalletAPI.Model.Dto.Response;
 
 namespace Payment.WalletAPI.Controllers
 {
-    [Route("api/[controller]")]
+    [Route("api/auth")]
     [ApiController]
     public class AuthController : ControllerBase
     {
