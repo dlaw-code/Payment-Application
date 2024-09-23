@@ -6,7 +6,8 @@ namespace Payment.WalletAPI.Service.Interface
     public interface IRecurringPaymentService
     {
         Task<RecurringPayment> CreateRecurringPaymentAsync(RecurringPaymentRequest request);
-        Task ProcessRecurringPaymentsAsync(); // Ensure this is correct
+        Task ProcessRecurringPaymentsAsync();
+        Task DeleteAccountWithRecurringPaymentsAsync(string accountNumber);
     }
 
 }

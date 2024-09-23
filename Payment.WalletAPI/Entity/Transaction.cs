@@ -1,15 +1,20 @@
-﻿namespace Payment.WalletAPI.Entity
+﻿using Payment.WalletAPI.Entity.Enums;
+
+namespace Payment.WalletAPI.Entity
 {
     public class Transaction
     {
-        public int Id { get; set; }
-        public Guid AccountId { get; set; } // Changed to Guid
-        public decimal Amount { get; set; } // Amount for the transaction
-        public string Type { get; set; } // "Deposit" or "Withdrawal"
-        public DateTime CreatedAt { get; set; } // Timestamp of the transaction
+        public Guid Id { get; set; }
+        public Guid FromAccountId { get; set; } // Account initiating the transaction
+        public Guid? ToAccountId { get; set; } // Optional (for transfers)
+        public decimal Amount { get; set; }
+        public TransactionType TransactionType { get; set; } // Credit, Debit, Transfer
+        public string TransactionNumber { get; set; } // Unique transaction reference
+        public DateTime TransactionDate { get; set; } = DateTime.UtcNow;
 
-        // Navigation property
-        public virtual Account Account { get; set; }
+        // Navigation properties
+        public virtual Account FromAccount { get; set; }
+        public virtual Account ToAccount { get; set; } // Optional (only for transfers)
     }
 
 }

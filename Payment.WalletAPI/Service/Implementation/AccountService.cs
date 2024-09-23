@@ -1,5 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Payment.WalletAPI.Entity;
+using Payment.WalletAPI.Entity.Enums;
 using Payment.WalletAPI.Model.Dto.Request;
 using Payment.WalletAPI.Model.Dto.Response;
 using Payment.WalletAPI.Service.Interface;
@@ -112,7 +113,6 @@ public class AccountService : IAccountService
     {
         if (request.Amount <= 0) return false; // Validate transfer amount
 
-        // Fetch the accounts using the account numbers
         var fromAccount = await _context.Accounts
             .FirstOrDefaultAsync(a => a.AccountNumber == request.FromAccountNumber);
         var toAccount = await _context.Accounts
@@ -125,12 +125,32 @@ public class AccountService : IAccountService
         fromAccount.Balance -= request.Amount;
         toAccount.Balance += request.Amount;
 
+        // Create a transaction record
+        var transaction = new Transaction
+        {
+            FromAccountId = fromAccount.Id,
+            ToAccountId = toAccount.Id,
+            Amount = request.Amount,
+            TransactionDate = DateTime.UtcNow,
+            TransactionNumber = GenerateTransactionNumber(), // Automatically generated transaction number
+            TransactionType = TransactionType.Transfer // Set using the enum
+        };
+
+        await _context.Transactions.AddAsync(transaction);
         _context.Accounts.Update(fromAccount);
         _context.Accounts.Update(toAccount);
         await _context.SaveChangesAsync();
 
         return true;
     }
+
+
+    private string GenerateTransactionNumber()
+    {
+        return $"{DateTime.UtcNow:yyyyMMddHHmmssfff}-{Guid.NewGuid().ToString().Substring(0, 8)}";
+    }
+
+
 
 
     public async Task<bool> WithdrawFundsAsync(WithdrawRequest request)
@@ -169,7 +189,9 @@ public class AccountService : IAccountService
     public async Task<string> GenerateShortCodeAsync(ShortCodeRequest request)
     {
         // Fetch the account using the account number
-        var fromAccount = await _context.Accounts.FirstOrDefaultAsync(a => a.AccountNumber == request.FromAccountNumber);
+        var fromAccount = await _context.Accounts
+            .FirstOrDefaultAsync(a => a.AccountNumber == request.FromAccountNumber);
+
         if (fromAccount == null)
         {
             return null; // Invalid account number
@@ -187,7 +209,7 @@ public class AccountService : IAccountService
         var shortCodeEntry = new ShortCode
         {
             Code = shortCode,
-            FromAccountNumber = fromAccount.AccountNumber, // Save the account number
+            FromAccountId = fromAccount.Id, // Reference account directly by Id (Guid)
             Amount = request.Amount,
             CreatedAt = DateTime.UtcNow
         };
@@ -197,6 +219,7 @@ public class AccountService : IAccountService
 
         return shortCode;
     }
+
 
 
 
@@ -227,7 +250,7 @@ public class AccountService : IAccountService
     public async Task<bool> ConfirmTransferWithShortCodeAsync(ShortCodeConfirmation confirmation)
     {
         var shortCodeEntry = await _context.ShortCodes
-            .Include(sc => sc.FromAccount)
+            .Include(sc => sc.FromAccount) // Ensure navigation property is included
             .SingleOrDefaultAsync(sc => sc.Code == confirmation.ShortCode);
 
         if (shortCodeEntry == null)
@@ -262,26 +285,27 @@ public class AccountService : IAccountService
         shortCodeEntry.FromAccount.Balance -= shortCodeEntry.Amount;
         recipientAccount.Balance += shortCodeEntry.Amount;
 
-        // Record transactions
+        //// Record transactions
         var withdrawalTransaction = new Transaction
         {
-            AccountId = shortCodeEntry.FromAccount.Id, // Use the navigation property for the sender
+            FromAccountId = shortCodeEntry.FromAccount.Id,
             Amount = shortCodeEntry.Amount,
-            Type = "Withdrawal",
-            CreatedAt = DateTime.UtcNow
+            TransactionType = TransactionType.Withdrawal
+
         };
+
         var depositTransaction = new Transaction
         {
-            AccountId = recipientAccount.Id, // Use the recipient account ID
+            ToAccountId = recipientAccount.Id,
             Amount = shortCodeEntry.Amount,
-            Type = "Deposit",
-            CreatedAt = DateTime.UtcNow
+            TransactionType = TransactionType.Deposit
+
         };
 
         _context.Transactions.Add(withdrawalTransaction);
         _context.Transactions.Add(depositTransaction);
 
-        // Save changes to the accounts and transactions
+        // Save changes to accounts and transactions
         await _context.SaveChangesAsync();
 
         // Remove the short code after successful transfer
@@ -295,14 +319,7 @@ public class AccountService : IAccountService
 
 
 
-    public async Task<List<Transaction>> GetTransactionHistoryAsync(Guid accountId)
-    {
-        return await _context.Transactions
-            .Where(t => t.AccountId == accountId) // Now comparing Guid with Guid
-            .OrderByDescending(t => t.CreatedAt) // Order by most recent
-            .ToListAsync();
-    }
-
+    
     public async Task<bool> DeleteAccountsByUserIdAsync(string userId)
     {
         var accounts = await _context.Accounts

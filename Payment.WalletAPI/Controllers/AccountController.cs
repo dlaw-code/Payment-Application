@@ -176,18 +176,7 @@ public class AccountsController : ControllerBase
         });
     }
 
-    [HttpGet("transaction-history/{accountId}")]
-    public async Task<ActionResult<ResponseDto<List<TransactionDto>>>> GetTransactionHistory(Guid accountId)
-    {
-        var transactions = await _transactionService.GetTransactionHistoryAsync(accountId);
-
-        return Ok(new ResponseDto<List<TransactionDto>>
-        {
-            Result = transactions,
-            IsSuccess = true,
-            Message = "Transaction history retrieved successfully."
-        });
-    }
+    
 
     [HttpDelete("user/{userId}")]
     public async Task<IActionResult> DeleteAccountsByUserId(string userId)

@@ -11,8 +11,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Payment.WalletAPI.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20240921223754_FirstMigrations")]
-    partial class FirstMigrations
+    [Migration("20240923005952_TranscationHistory")]
+    partial class TranscationHistory
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -321,10 +321,6 @@ namespace Payment.WalletAPI.Migrations
                     b.Property<Guid>("FromAccountId")
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<string>("FromAccountNumber")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
                     b.HasKey("Id");
 
                     b.HasIndex("FromAccountId");
@@ -334,28 +330,35 @@ namespace Payment.WalletAPI.Migrations
 
             modelBuilder.Entity("Payment.WalletAPI.Entity.Transaction", b =>
                 {
-                    b.Property<int>("Id")
+                    b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<Guid>("AccountId")
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<decimal>("Amount")
                         .HasColumnType("decimal(18,2)");
 
-                    b.Property<DateTime>("CreatedAt")
+                    b.Property<Guid>("FromAccountId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("ToAccountId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("TransactionDate")
                         .HasColumnType("datetime2");
 
-                    b.Property<string>("Type")
+                    b.Property<string>("TransactionNumber")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("TransactionType")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("AccountId");
+                    b.HasIndex("FromAccountId");
+
+                    b.HasIndex("ToAccountId");
 
                     b.ToTable("Transactions");
                 });
@@ -437,7 +440,7 @@ namespace Payment.WalletAPI.Migrations
                     b.HasOne("Payment.WalletAPI.Entity.Account", "FromAccount")
                         .WithMany()
                         .HasForeignKey("FromAccountId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.Navigation("FromAccount");
@@ -445,13 +448,19 @@ namespace Payment.WalletAPI.Migrations
 
             modelBuilder.Entity("Payment.WalletAPI.Entity.Transaction", b =>
                 {
-                    b.HasOne("Payment.WalletAPI.Entity.Account", "Account")
+                    b.HasOne("Payment.WalletAPI.Entity.Account", "FromAccount")
                         .WithMany()
-                        .HasForeignKey("AccountId")
+                        .HasForeignKey("FromAccountId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.Navigation("Account");
+                    b.HasOne("Payment.WalletAPI.Entity.Account", "ToAccount")
+                        .WithMany()
+                        .HasForeignKey("ToAccountId");
+
+                    b.Navigation("FromAccount");
+
+                    b.Navigation("ToAccount");
                 });
 #pragma warning restore 612, 618
         }

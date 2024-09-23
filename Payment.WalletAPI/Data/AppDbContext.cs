@@ -13,6 +13,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
 
     public DbSet<ApplicationUser> ApplicationUsers { get; set; }
 
+    // In your AppDbContext class
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -21,22 +22,30 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
             .HasIndex(a => a.AccountNumber)
             .IsUnique();
 
-        // Configure RecurringPayment -> FromAccount relationship with NO ACTION on delete
+        // RecurringPayment relationships
         modelBuilder.Entity<RecurringPayment>()
             .HasOne(rp => rp.FromAccount)
-            .WithMany()
-            .HasPrincipalKey(a => a.AccountNumber)
+            .WithMany() // No navigation property back to RecurringPayments
             .HasForeignKey(rp => rp.FromAccountNumber)
-            .OnDelete(DeleteBehavior.Restrict);  // Changed to Restrict
+            .HasPrincipalKey(a => a.AccountNumber)
+            .OnDelete(DeleteBehavior.Restrict); // Prevent cascading delete
 
-        // Configure RecurringPayment -> ToAccount relationship with NO ACTION on delete
         modelBuilder.Entity<RecurringPayment>()
             .HasOne(rp => rp.ToAccount)
-            .WithMany()
-            .HasPrincipalKey(a => a.AccountNumber)
+            .WithMany() // No navigation property back to RecurringPayments
             .HasForeignKey(rp => rp.ToAccountNumber)
-            .OnDelete(DeleteBehavior.Restrict);  // Changed to Restrict
+            .HasPrincipalKey(a => a.AccountNumber)
+            .OnDelete(DeleteBehavior.Restrict); // Prevent cascading delete
+
+        // ShortCode relationship
+        modelBuilder.Entity<ShortCode>()
+        .HasOne(sc => sc.FromAccount)
+        .WithMany() // Adjust if there's a navigation property back
+        .HasForeignKey(sc => sc.FromAccountId) // Ensure this matches the updated property
+        .OnDelete(DeleteBehavior.Restrict); // Choose behavior as needed
     }
+
+
 
 
 

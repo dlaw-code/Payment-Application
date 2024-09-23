@@ -5,7 +5,7 @@ using Payment.WalletAPI.Service.Interface;
 
 namespace Payment.WalletAPI.Service.Implementation
 {
-    public class TransactionService: ITransactionService
+    public class TransactionService : ITransactionService
     {
         private readonly AppDbContext _context;
 
@@ -14,21 +14,24 @@ namespace Payment.WalletAPI.Service.Implementation
             _context = context;
         }
 
+        // Fetch transaction history for a specific account
         public async Task<List<TransactionDto>> GetTransactionHistoryAsync(Guid accountId)
         {
-            return await _context.Transactions
-                .Where(t => t.AccountId == accountId) // Now comparing Guid with Guid
-                .Select(t => new TransactionDto
-                {
-                    Id = t.Id,
-                    AccountId = t.AccountId,
-                    Amount = t.Amount,
-                    Type = t.Type, // Assuming you have a Type property
-                    CreatedAt = t.CreatedAt
-                })
-                .OrderByDescending(t => t.CreatedAt)
+            // Fetch the transactions for the specified account
+            var transactions = await _context.Transactions
+                .Where(t => t.FromAccountId == accountId || t.ToAccountId == accountId)
                 .ToListAsync();
+
+            return transactions.Select(t => new TransactionDto
+            {
+                Amount = t.Amount,
+                TransactionType = t.TransactionType.ToString(), // Convert enum to string
+                TransactionNumber = t.TransactionNumber,
+                TransactionDate = t.TransactionDate,
+                Recipient = t.ToAccount != null ? t.ToAccount.AccountNumber : null // For transfers
+            }).ToList();
         }
+
 
 
     }

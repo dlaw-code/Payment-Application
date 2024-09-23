@@ -5,6 +5,7 @@ using Payment.WalletAPI.Service.Interface;
 
 [ApiController]
 [Route("api/[controller]")]
+
 public class RecurringPaymentController : ControllerBase
 {
     private readonly IRecurringPaymentService _recurringPaymentService;
@@ -25,4 +26,13 @@ public class RecurringPaymentController : ControllerBase
             Result = recurringPayment
         });
     }
+    [HttpDelete("deleteAccount/{accountNumber}")]
+    public async Task<IActionResult> DeleteAccount(string accountNumber)
+    {
+        await _recurringPaymentService.DeleteAccountWithRecurringPaymentsAsync(accountNumber);
+        return Ok(new { message = "Account and associated recurring payments deleted successfully." });
+    }
+
+
+
 }
